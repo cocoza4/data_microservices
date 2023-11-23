@@ -13,4 +13,13 @@ run-app:
 .PHONY: run
 run:
 	make build
-	docker-compose -f docker/docker-compose.yaml up
+	docker-compose -f docker/docker-compose.yml up
+
+.PHONY: test
+test:
+	docker-compose -f docker/docker-compose.integration-test.yml rm -fsv && \
+	docker-compose -f docker/docker-compose.integration-test.yml up \
+		--build \
+		--abort-on-container-exit \
+		--remove-orphans && \
+	docker-compose -f docker/docker-compose.integration-test.yml rm -fsv

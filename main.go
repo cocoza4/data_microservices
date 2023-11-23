@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/cocoza4/data_microservices/controllers"
 	"github.com/cocoza4/data_microservices/services"
@@ -22,11 +23,22 @@ var (
 	err        error
 )
 
+func getEnv(key, fallback string) string {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		value = fallback
+	}
+	return value
+}
+
 func init() {
 	ctx = context.TODO()
 
-	conn := options.Client().ApplyURI("mongodb://localhost:27017")
-	// conn := options.Client().ApplyURI("mongodb://mongodb:27017")
+	mongo_uri := getEnv("MONGO_URI", "mongodb://localhost:27017")
+	db := getEnv("MONGO_DBNAME", "productdb")
+	log.Println("Mongo URI:", mongo_uri)
+	log.Println("Mongo DB:", db)
+	conn := options.Client().ApplyURI(mongo_uri)
 	client, err = mongo.Connect(ctx, conn)
 	if err != nil {
 		log.Fatal(err)
@@ -37,7 +49,7 @@ func init() {
 	}
 	log.Println("mongo connection established")
 
-	collection = client.Database("productdb").Collection("products")
+	collection = client.Database(db).Collection("products")
 	service = services.NewProductService(collection, ctx)
 	ctr = controllers.ProductController{ProductService: service}
 	server = gin.Default()

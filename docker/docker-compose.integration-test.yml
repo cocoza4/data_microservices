@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+
+  mongodb-test:
+    image: mongo:7.0.3
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      # todo chagne to env variable
+      - MONGO_INITDB_ROOT_USERNAME:mongo_write
+      - MONGO_INITDB_ROOT_PASSWORD:write1243omf9dnsO
+
+  app-test:
+    image: data_microservices-test:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - 8080:8080
+    environment:
+      - MONGO_URI=mongodb://mongodb-test:27017
+      - MONGO_DBNAME=productdb_test
+    depends_on:
+      - mongodb-test
+
+  test:
+    image: integration-test:latest
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.test
+    environment:
+      - MONGO_URI=mongodb://mongodb-test:27017
+      - MONGO_DBNAME=productdb_test
+    depends_on:
+      - app-test
+    command: "go test"

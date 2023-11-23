@@ -70,13 +70,16 @@ func (ctr *ProductController) GetIndexes(ctx *gin.Context) {
 func (ctr *ProductController) CreateIndex(ctx *gin.Context) {
 	field := ctx.Query("field")
 	if len(strings.TrimSpace(field)) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "`field` can't be empty"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "'field' can't be empty"})
+		return
 	}
 	err := ctr.ProductService.CreateIndex(&field)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+	} else {
+		ctx.JSON(http.StatusOK, gin.H{"message": "success"})
 	}
-	ctx.JSON(http.StatusOK, nil)
+
 }
 
 func (ctr *ProductController) RegisterRoutes(rg *gin.RouterGroup) {
