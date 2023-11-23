@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
@@ -21,7 +20,6 @@ func NewProductController(service services.ProductService) ProductController {
 }
 
 func (ctr *ProductController) CreateProduct(ctx *gin.Context) {
-	log.Println("create product")
 	var product models.Product
 	if err := ctx.ShouldBindJSON(&product); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
