@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -65,9 +64,6 @@ func (p *ProductServiceImpl) GetAll() ([]*models.Product, error) {
 		return nil, err
 	}
 	cursor.Close(p.ctx)
-	if len(products) == 0 {
-		return nil, errors.New("documents not found")
-	}
 	return products, nil
 }
 

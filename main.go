@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cocoza4/data_microservices/controllers"
+	"github.com/cocoza4/data_microservices/middleware"
 	"github.com/cocoza4/data_microservices/services"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,13 +15,21 @@ import (
 )
 
 var (
-	server     *gin.Engine
-	service    services.ProductService
-	ctr        controllers.ProductController
-	ctx        context.Context
-	collection *mongo.Collection
-	client     *mongo.Client
-	err        error
+	server      *gin.Engine
+	service     services.ProductService
+	authCtrl    controllers.AuthController
+	productCtrl controllers.ProductController
+	ctx         context.Context
+	collection  *mongo.Collection
+	client      *mongo.Client
+	err         error
+)
+
+// mock basic auth user
+var (
+	secret_username string
+	secret_password string
+	secret_key      string
 )
 
 func getEnv(key, fallback string) string {
@@ -34,10 +43,19 @@ func getEnv(key, fallback string) string {
 func init() {
 	ctx = context.TODO()
 
+	secret_username = getEnv("SECRET_USER", "")
+	secret_password = getEnv("SECRET_PASSWORD", "")
+	secret_key = getEnv("SECRET_KEY", "")
+
+	if secret_username == "" || secret_password == "" || secret_key == "" {
+		log.Fatal("`SECRET_USER`, `SECRET_PASSWORD` and `SECRET_KEY` are required")
+	}
+
 	mongo_uri := getEnv("MONGO_URI", "mongodb://localhost:27017")
 	db := getEnv("MONGO_DBNAME", "productdb")
 	log.Println("Mongo URI:", mongo_uri)
 	log.Println("Mongo DB:", db)
+
 	conn := options.Client().ApplyURI(mongo_uri)
 	client, err = mongo.Connect(ctx, conn)
 	if err != nil {
@@ -51,14 +69,19 @@ func init() {
 
 	collection = client.Database(db).Collection("products")
 	service = services.NewProductService(collection, ctx)
-	ctr = controllers.ProductController{ProductService: service}
+	productCtrl = controllers.ProductController{ProductService: service}
+	authCtrl = controllers.AuthController{}
 	server = gin.Default()
 }
 
 func main() {
 	defer client.Disconnect(ctx)
 
-	basepath := server.Group("/v1")
-	ctr.RegisterRoutes(basepath)
+	version := "/v1"
+	basepath := server.Group(version)
+	authCtrl.RegisterRoutes(basepath)
+
+	productPath := server.Group(version, middleware.Authorize)
+	productCtrl.RegisterRoutes(productPath)
 	log.Fatal(server.Run(":8080"))
 }
