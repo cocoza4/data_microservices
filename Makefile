@@ -1,5 +1,9 @@
 export IMAGE ?= data_microservices:latest
-
+export SECRET_USER ?= 
+export SECRET_PASSWORD ?=
+export SECRET_KEY ?=
+export MONGO_USER ?=
+export MONGO_PASSWORD ?=
 
 .PHONY: build
 build:

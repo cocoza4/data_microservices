@@ -7,9 +7,8 @@ services:
     ports:
       - 27017:27017
     environment:
-      # todo chagne to env variable
-      - MONGO_INITDB_ROOT_USERNAME:mongo_write
-      - MONGO_INITDB_ROOT_PASSWORD:write1243omf9dnsO
+      - MONGO_INITDB_ROOT_USERNAME:mongouser
+      - MONGO_INITDB_ROOT_PASSWORD:mongopass
 
   app-test:
     image: data_microservices-test:latest
@@ -21,6 +20,9 @@ services:
     environment:
       - MONGO_URI=mongodb://mongodb-test:27017
       - MONGO_DBNAME=productdb_test
+      - SECRET_USER=testuser
+      - SECRET_PASSWORD=testpassword
+      - SECRET_KEY=testkey
     depends_on:
       - mongodb-test
 
@@ -32,6 +34,9 @@ services:
     environment:
       - MONGO_URI=mongodb://mongodb-test:27017
       - MONGO_DBNAME=productdb_test
+      - SECRET_USER=testuser
+      - SECRET_PASSWORD=testpassword
+      - SECRET_KEY=testkey
     depends_on:
       - app-test
     command: "go test"

@@ -25,6 +25,11 @@ func login(ctx *gin.Context) {
 		return
 	}
 
+	if user.Username != os.Getenv("SECRET_USER") || user.Password != os.Getenv("SECRET_PASSWORD") {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "user or password is incorrect"})
+		return
+	}
+
 	// normally we'd lookup the database to get credentials and compute but since this is out of scope of this test, i will just use mock user
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": user.Username,

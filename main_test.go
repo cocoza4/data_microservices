@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/cocoza4/data_microservices/models"
@@ -15,6 +16,33 @@ import (
 
 var PORT = 8080
 var URI = fmt.Sprintf("http://app-test:%d", PORT)
+
+var (
+	test_user       = os.Getenv("SECRET_USER")
+	test_password   = os.Getenv("SECRET_PASSWORD")
+	test_secret_key = os.Getenv("SECRET_KEY")
+)
+
+func request(url, requestType string, data []byte) (*http.Response, []byte) {
+	client := &http.Client{
+		Transport: &http.Transport{},
+	}
+
+	req, err := http.NewRequest(requestType, url, bytes.NewBuffer(data))
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	req.SetBasicAuth(test_user, test_password)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return resp, body
+}
 
 func init() {
 	data1 := []byte(`{
@@ -31,22 +59,15 @@ func init() {
 	}`)
 
 	url := fmt.Sprintf("%v/v1/products", URI)
-	http.Post(url, "application/json", bytes.NewBuffer(data1))
-	http.Post(url, "application/json", bytes.NewBuffer(data2))
-	http.Post(url, "application/json", bytes.NewBuffer(data3))
-
+	request(url, http.MethodPost, []byte(data1))
+	request(url, http.MethodPost, []byte(data2))
+	request(url, http.MethodPost, []byte(data3))
 }
 
 func TestGetProducts(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products", URI)
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Println("Error", err.Error())
-	}
+	resp, body := request(url, http.MethodGet, nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
 
 	var products []models.Product
 	err = json.Unmarshal(body, &products)
@@ -56,11 +77,8 @@ func TestGetProducts(t *testing.T) {
 
 func TestGetProduct(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products/%v", URI, "p1")
-	resp, _ := http.Get(url)
+	resp, body := request(url, http.MethodGet, nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
 
 	var product models.Product
 	err = json.Unmarshal(body, &product)
@@ -71,14 +89,8 @@ func TestGetProduct(t *testing.T) {
 
 func TestGetLatest(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products/latest", URI)
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Println("Error", err.Error())
-	}
+	resp, body := request(url, http.MethodGet, nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
 
 	var product models.Product
 	err = json.Unmarshal(body, &product)
@@ -93,53 +105,109 @@ func TestCreateProduct(t *testing.T) {
 	}`)
 
 	url := fmt.Sprintf("%v/v1/products", URI)
-	resp, _ := http.Post(url, "application/json", bytes.NewBuffer(data))
+	resp, body := request(url, http.MethodPost, []byte(data))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-
 	assert.Equal(t, `{"message":"success"}`, string(body))
 }
 
 func TestGetIndexes(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products/indexes", URI)
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Println("Error", err.Error())
-	}
+	resp, body := request(url, http.MethodGet, nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-
 	assert.Equal(t, `[{"name":"_id_"}]`, string(body))
 }
 
 func TestCreateIndex(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products/indexes?field=name", URI)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("")))
-	if err != nil {
-		log.Println("Error", err.Error())
-	}
+	resp, body := request(url, http.MethodPost, nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-
 	assert.Equal(t, `{"message":"success"}`, string(body))
 }
 
 func TestCreateIndex_noFieldSpecified(t *testing.T) {
 	url := fmt.Sprintf("%v/v1/products/indexes", URI)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("")))
+	resp, body := request(url, http.MethodPost, nil)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, `{"message":"'field' can't be empty"}`, string(body))
+}
+
+func TestRequest_noCredentials(t *testing.T) {
+	url := fmt.Sprintf("%v/v1/products", URI)
+	resp, err := http.Get(url)
 	if err != nil {
 		log.Println("Error", err.Error())
 	}
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	defer resp.Body.Close()
 
-	assert.Equal(t, `{"message":"'field' can't be empty"}`, string(body))
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, `{"message":"Authentication required"}`, string(body))
+}
+
+func TestRequest_invalidCredentials(t *testing.T) {
+	url := fmt.Sprintf("%v/v1/products", URI)
+	client := &http.Client{
+		Transport: &http.Transport{},
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	req.SetBasicAuth("xxx", "yyy") // invalid credentials
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, `{"message":"Invalid credentials"}`, string(body))
+}
+
+func TestLogin_invalidCredentials(t *testing.T) {
+	url := fmt.Sprintf("%v/v1/login", URI)
+	client := &http.Client{
+		Transport: &http.Transport{},
+	}
+
+	data := []byte(`{
+		"username": "xxx",
+		"password": "yyy"
+	}`)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, `{"message":"user or password is incorrect"}`, string(body))
+}
+
+func TestLogin(t *testing.T) {
+	data := []byte(fmt.Sprintf(`{
+		"username": "%s",
+		"password": "%s"
+	}`, test_user, test_password))
+
+	url := fmt.Sprintf("%v/v1/login", URI)
+	resp, body := request(url, http.MethodPost, []byte(data))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var respObj map[string]string
+	json.Unmarshal([]byte(body), &respObj)
+	_, ok := respObj["token"]
+	assert.True(t, ok)
 }
