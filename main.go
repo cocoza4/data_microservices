@@ -129,7 +129,7 @@ func main() {
 	productPath := server.Group(version, middleware.Authorize)
 	productCtrl.RegisterRoutes(productPath)
 
-	kafkaPath := server.Group(version)
+	kafkaPath := server.Group(version, middleware.Authorize)
 	kafkaCtrl.RegisterRoutes(kafkaPath)
 
 	log.Fatal(server.Run(":8080"))
