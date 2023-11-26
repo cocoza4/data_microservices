@@ -196,6 +196,61 @@ func TestLogin_invalidCredentials(t *testing.T) {
 	assert.Equal(t, `{"message":"user or password is incorrect"}`, string(body))
 }
 
+func TestKafka_CreateTopic(t *testing.T) {
+	topic := "test"
+	url := fmt.Sprintf("%v/v1/kafka/topics/%v", URI, topic)
+	resp, body := request(url, http.MethodPost, nil)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, `{"message":"success"}`, string(body))
+}
+
+func TestKafka_GetTopics(t *testing.T) {
+	url := fmt.Sprintf("%v/v1/kafka/topics", URI)
+	resp, body := request(url, http.MethodGet, nil)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// returns 3 indexes due to 3 partitions
+	assert.Equal(t, `[{"name":"test"},{"name":"test"},{"name":"test"}]`, string(body))
+}
+
+func TestKafka_PublishMessage(t *testing.T) {
+	data := []byte(`{
+		"name": "mock",
+		"description": "mock"
+	}`)
+
+	topic := "test"
+	url := fmt.Sprintf("%v/v1/kafka/topics/%v/publish", URI, topic)
+	resp, body := request(url, http.MethodPost, []byte(data))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, `{"message":"success"}`, string(body))
+}
+
+func TestKafka_GetLatestMessage(t *testing.T) {
+	topic := "test"
+	publish_url := fmt.Sprintf("%v/v1/kafka/topics/%v/publish", URI, topic)
+	url := fmt.Sprintf("%v/v1/kafka/topics/%v/latest", URI, topic)
+
+	data1 := []byte(`{
+		"name": "message1",
+		"description": "message1"
+	}`)
+	data2 := []byte(`{
+		"name": "message2",
+		"description": "message2"
+	}`)
+
+	request(publish_url, http.MethodPost, []byte(data1))
+	request(publish_url, http.MethodPost, []byte(data2))
+
+	resp, body := request(url, http.MethodGet, nil)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var product models.Product
+	err = json.Unmarshal(body, &product)
+	assert.Nil(t, err)
+	assert.Equal(t, "message2", product.Name)
+}
+
 func TestLogin(t *testing.T) {
 	data := []byte(fmt.Sprintf(`{
 		"username": "%s",

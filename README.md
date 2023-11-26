@@ -53,9 +53,9 @@ GET - <host>/v1/kafka/topics/<name>/latest
 
 ## Dependencies
 1. make
-2. docker
+2. docker-compose 2.15.1
 3. python
-4. golang
+4. golang 1.20
 
 ## Test
 ```
@@ -75,3 +75,5 @@ With `docker-compose`
 ```
 make run
 ```
+
+All examples can be found in `scripts` folder.

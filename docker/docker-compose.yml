@@ -14,6 +14,11 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/kafka/bin/kafka-topics.sh", "--list", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 2
 
   mongodb:
     image: mongo:7.0.3
@@ -24,12 +29,16 @@ services:
       - MONGO_INITDB_ROOT_USERNAME:${MONGO_USER}
       - MONGO_INITDB_ROOT_PASSWORD:${MONGO_PASSWORD}
       - MONGO_INITDB_DATABASE:products
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
     # volumes:
     #   - ../db:/data/db
 
   app:
     image: data_microservices:latest
-    restart: always
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -42,9 +51,12 @@ services:
       - SECRET_PASSWORD=${SECRET_PASSWORD}
       - SECRET_KEY=${SECRET_KEY}
       - KAFKA_URI=kafka
+      - GIN_MODE=release
     depends_on:
-      - kafka
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
 
   # mongo-client:
   #   image: mongo-express:1.0.0-20
@@ -57,5 +69,3 @@ services:
   #     - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017
   #   depends_on:
   #     - mongodb
-  #   networks: 
-  #     - mongo-compose-network

@@ -122,17 +122,14 @@ func getLatestByPartition(ch chan models.Product, topic *string, partition kafka
 	defer reader.Close()
 
 	product := models.Product{}
-	log.Println("partition.LastOffset", partition.LastOffset)
 	if partition.LastOffset > 0 {
 		reader.SetOffset(partition.LastOffset - 1)
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Println(err.Error())
 		}
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 
 		json.Unmarshal(m.Value, &product)
-		fmt.Println("xxxxxxx", product)
 	}
 
 	ch <- product
@@ -147,15 +144,12 @@ func (k *KafkaServiceImpl) GetLatest(topic *string) (*models.Product, error) {
 	}
 
 	numPartitions := len(resp.Topics[*topic])
-	log.Println("num partitions", numPartitions)
 	ch := make(chan models.Product, numPartitions)
 	var wg sync.WaitGroup
 	for _, partition := range resp.Topics[*topic] {
 		if partition.Error != nil {
 			log.Println(partition.Error)
 		}
-
-		fmt.Printf("partition: %d, last offset(%d)\n", partition.Partition, partition.LastOffset)
 
 		go getLatestByPartition(ch, topic, partition, &wg)
 		wg.Add(1)

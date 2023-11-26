@@ -90,6 +90,8 @@ func getKafkaConnAndWriter() (*kafka.Conn, *kafka.Writer) {
 		Balancer: &kafka.LeastBytes{},
 	}
 
+	log.Println("Kafka connection established")
+
 	return controllerConn, writer
 }
 
